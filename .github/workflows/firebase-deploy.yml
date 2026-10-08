@@ -24,7 +24,7 @@ jobs:
         run: npm ci
       - name: Build project
         run: npm run build
-      - name: Deploy to Firebase
+      - name: Deploy to Firebase (hosting & dataconnect)
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
-        run: firebase deploy --only hosting
+        run: firebase deploy --only hosting,dataconnect
