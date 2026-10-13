@@ -5,7 +5,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAdmin } from '@/lib/AdminContext';
 import { PLATFORMS } from '@/lib/constants';
-import { PlatformId } from '@/lib/types';
+import { PlatformId, Product } from '@/lib/types';
+import { exportProductsJson } from '@/lib/storage';
 import {
   PlusCircle,
   Search,
@@ -18,13 +19,49 @@ import {
   ShoppingBag,
   Star,
   Sparkles,
+  Download,
+  Upload,
 } from 'lucide-react';
 
 export default function PainelProdutosPage() {
-  const { products, handleDeleteProduct } = useAdmin();
+  const { products, handleDeleteProduct, handleSaveProduct } = useAdmin();
   const [searchQuery, setSearchQuery] = useState('');
   const [platformFilter, setPlatformFilter] = useState<PlatformId | 'all'>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleExportBackup = () => {
+    exportProductsJson(products);
+  };
+
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          for (const item of parsed) {
+            await handleSaveProduct(item as Product);
+          }
+          alert(`${parsed.length} produtos e imagens importados e salvos com sucesso!`);
+        } else {
+          alert('Arquivo JSON inválido ou vazio.');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Erro ao processar arquivo de backup JSON.');
+      } finally {
+        setImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
@@ -66,13 +103,39 @@ export default function PainelProdutosPage() {
           </p>
         </div>
 
-        <Link
-          href="/painel/produtos/novo"
-          className="py-3 px-5 bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 group shrink-0"
-        >
-          <PlusCircle className="w-4 h-4 text-amber-300 group-hover:scale-110 transition-transform" />
-          <span>Cadastrar Novo Achadinho</span>
-        </Link>
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImportBackup}
+            accept=".json"
+            className="hidden"
+          />
+          <button
+            onClick={handleExportBackup}
+            className="py-2.5 px-3.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold text-xs rounded-xl border border-stone-300 transition-all flex items-center gap-1.5"
+            title="Baixar arquivo JSON com todos os produtos e imagens atuais"
+          >
+            <Download className="w-3.5 h-3.5 text-stone-600" />
+            <span>Exportar Backup</span>
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className="py-2.5 px-3.5 bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold text-xs rounded-xl border border-stone-300 transition-all flex items-center gap-1.5 disabled:opacity-50"
+            title="Restaurar produtos e imagens a partir de um arquivo JSON"
+          >
+            <Upload className="w-3.5 h-3.5 text-stone-600" />
+            <span>{importing ? 'Importando...' : 'Restaurar Backup'}</span>
+          </button>
+          <Link
+            href="/painel/produtos/novo"
+            className="py-2.5 px-4 bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 group"
+          >
+            <PlusCircle className="w-4 h-4 text-amber-300 group-hover:scale-110 transition-transform" />
+            <span>Cadastrar Novo</span>
+          </Link>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
